@@ -45,6 +45,7 @@ class View:
         """
         self.vehicle = Rectangle(Point(upper_left_corner[0], upper_left_corner[1]), Point(lower_right_corner[0], lower_right_corner[1]))
         self.vehicle.setFill(color)
+        self.vehicle.draw(self.window)
 
     def check_mouse(self):
         """

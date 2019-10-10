@@ -171,16 +171,17 @@ class Vehicle(Feature):
         Creates a new Vehicle with given parameters position, width, and height.
         The Vehicle also starts with a velocity of (0.0, 0.0).
         """
-        self.position = position
+        self.center = position
         self.width = width
         self.height = height
         self.velocity = () + (0.0, 0.0)
+        self.acceleration = () + (0.0, 0.0)
 
-    def apply_acceleration(self, acceleration: tuple, delta_t: float):
+    def apply_acceleration(self, acceleration: tuple):
         """
         Applies an acceleration to the Vehicle where acceleration is the instantaneous change in velocity.
         """
-        self.velocity = () + (self.velocity[0] + acceleration[0]* delta_t, self.velocity[1] + acceleration[1] * delta_t)
+        self.acceleration = acceleration
 
     def on_collision(self):
         """
@@ -190,7 +191,10 @@ class Vehicle(Feature):
 
     def update(self, delta_t: float):
         """
+        Updates the velocity of the Vehicle based upon its current accleration.
         Updates the position of the Vehicle based upon its current velocity.
         Any acceleration should be applied prior to updating.
         """
-        self.position = () + (self.position[0] + self.velocity[0] * delta_t, self.position[1] + self.velocity[1]* delta_t)
+        self.velocity = () + (self.velocity[0] + self.acceleration[0] * delta_t, self.velocity[1] + self.acceleration[1] * delta_t)
+        self.center = () + (self.center[0] + self.velocity[0] * delta_t, self.center[1] + self.velocity[1]* delta_t)
+        self.acceleration = () + (0.0, 0.0)
