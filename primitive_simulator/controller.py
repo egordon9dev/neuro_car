@@ -96,10 +96,14 @@ class Controller:
 
 if __name__ == '__main__':
     controller = Controller((1280, 720), "Primitive Simulator", 0.001)
-    controller.initialize_vehicle((200, 200), 40, 40, "red")
+    controller.initialize_vehicle((100, 100), 40, 40, "red")
     controller.set_agent(Agent(controller.world.vehicle))
-    controller.add_obstacle((50, 360), 100, 720, "blue")
-    controller.add_obstacle((1230, 360), 100, 720, "blue")
+    controller.add_obstacle((25, 360), 50, 720, "blue")
+    controller.add_obstacle((1255, 360), 50, 720, "blue")
+    controller.add_obstacle((640, 25), 1180, 50, "blue")
+    controller.add_obstacle((640, 695), 1180, 50, "blue")
+    controller.add_obstacle((640, 360), 450, 300, "blue")
+    print(controller.world.convert_area_to_pixel((640, 360), 1280, 720))
 
     should_close = False
     while not should_close:

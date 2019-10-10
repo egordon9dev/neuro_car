@@ -23,7 +23,7 @@ class World:
     def add_obstacle(self, position: tuple, width: float, height: float):
         """
         Creates a new Obstacle and places it in the World at the given position.
-        Obstacles are allowed to collide with other Obstacles.
+        Obstacles are allowed to collide with other Obstacles (but it is discouraged due to potential accuracy errors it can introduce).
         Obstacles cannot be created outside of the World bounds.
         """
         if position[0] - width / 2 >= 0 and position[0] + width / 2 <= self.width and position[1] - height / 2 >= 0 and position[1] + height / 2 <= self.height:
@@ -95,6 +95,18 @@ class World:
         lower_right = () + (updated_position[0] + vehicle_width_half, updated_position[1] + vehicle_height_half)
         return [upper_left, upper_right, lower_left, lower_right]
 
+    def convert_area_to_pixel(self, position: tuple, width: float, height: float):
+        """
+        For the purposes of getting "camera data," this simulator will perform
+        a 2D analog of that by taking an area of the World and returning a value
+        that reflects a combination of features (or lack thereof) in that area.
+        """
+        feature = Feature(position, width, height)
+        percentages = []
+        for obstacle in self.obstacles:
+            percentages.append(obstacle.get_percentage_of_overlapping(feature))
+        return min(sum(percentages), 1.0)
+
 
 class Feature:
     """
@@ -136,7 +148,13 @@ class Feature:
         """
         Gets the corners of this Feature in this order: [upper_left, upper_right, lower_left, lower_right].
         """
-        return [self.get_upper_left_corner, self.get_upper_right_corner, self.get_lower_left_corner, self.get_lower_right_corner]
+        return [self.get_upper_left_corner(), self.get_upper_right_corner(), self.get_lower_left_corner(), self.get_lower_right_corner()]
+
+    def get_area(self):
+        """
+        Returns the area of this Feature.
+        """
+        return self.width * self.height
 
 class Obstacle(Feature):
     """
@@ -176,6 +194,30 @@ class Obstacle(Feature):
             if self.check_collision_position(position):
                 return True
         return False
+
+    def get_percentage_of_overlapping(self, feature: Feature):
+        """
+        This method is used for the purposes of converting the World space into a pixel space.
+        This method finds the percentage of the passed in Feature overlapping with this Feature.
+        Returns the percentage expressed as a float.
+        """
+        if not self.check_collision(feature.get_corners()):
+            return 0.0
+
+
+        upper_left = self.get_upper_left_corner()
+        other_upper_left = feature.get_upper_left_corner()
+        lower_right = self.get_lower_right_corner()
+        other_lower_right = feature.get_lower_right_corner()
+        
+        intersect_upper_left = () + (max(upper_left[0], other_upper_left[0]), max(upper_left[1], other_upper_left[1]))
+        intersect_lower_right = () + (min(lower_right[0], other_lower_right[0]), min(lower_right[1], other_lower_right[1]))
+        
+        intersecting_area = (intersect_lower_right[0] - intersect_upper_left[0]) * (intersect_lower_right[1] - intersect_upper_left[1])
+        
+        intersecting_area = max(intersecting_area, 0)
+
+        return intersecting_area / feature.get_area()
 
 class Vehicle(Feature):
     """

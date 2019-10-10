@@ -37,6 +37,7 @@ class View:
         """
         self.rectangles.append(Rectangle(Point(upper_left_corner[0], upper_left_corner[1]), Point(lower_right_corner[0], lower_right_corner[1])))
         self.rectangles[len(self.rectangles) - 1].setFill(color)
+        self.rectangles[len(self.rectangles) - 1].setOutline(color)
         self.rectangles[len(self.rectangles) - 1].draw(self.window)
 
     def set_vehicle(self, upper_left_corner: tuple, lower_right_corner: tuple, color: str):
