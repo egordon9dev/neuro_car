@@ -98,6 +98,8 @@ if __name__ == '__main__':
     controller = Controller((1280, 720), "Primitive Simulator", 0.001)
     controller.initialize_vehicle((200, 200), 40, 40, "red")
     controller.set_agent(Agent(controller.world.vehicle))
+    controller.add_obstacle((50, 360), 100, 720, "blue")
+    controller.add_obstacle((1230, 360), 100, 720, "blue")
 
     should_close = False
     while not should_close:
@@ -106,6 +108,9 @@ if __name__ == '__main__':
                 should_close = True
             else:
                 controller.update()
-        except GraphicsError:
-            print("WARNING: Window was closed by user.")
+        except GraphicsError as ge:
+            print("WARNING: " + ge.__str__())
+            should_close = True
+        except Exception as e:
+            print(e)
             should_close = True

@@ -19,7 +19,7 @@ class View:
         Creates a new View with a given World to represent.
         """
         self.world = world
-        self.window = GraphWin(title, world.width, world.height)
+        self.window = GraphWin(title, world.width, world.height, autoflush=False)
         self.rectangles = []
         self.vehicle = None
 
@@ -27,10 +27,9 @@ class View:
         """
         Redraws this View (call upon update in coordinates).
         """
-        for rectangle in self.rectangles:
-            rectangle.draw(self.window)
         if self.vehicle:
             self.vehicle.move(self.world.vehicle.velocity[0] * delta_t, self.world.vehicle.velocity[1] * delta_t)
+        self.window.update()
 
     def add_feature(self, upper_left_corner: tuple, lower_right_corner: tuple, color: str):
         """
@@ -38,6 +37,7 @@ class View:
         """
         self.rectangles.append(Rectangle(Point(upper_left_corner[0], upper_left_corner[1]), Point(lower_right_corner[0], lower_right_corner[1])))
         self.rectangles[len(self.rectangles) - 1].setFill(color)
+        self.rectangles[len(self.rectangles) - 1].draw(self.window)
 
     def set_vehicle(self, upper_left_corner: tuple, lower_right_corner: tuple, color: str):
         """

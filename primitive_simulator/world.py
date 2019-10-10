@@ -76,7 +76,25 @@ class World:
         Will update the position of the contained Vehicle based upon its velocity.
         """
         if self.vehicle:
-            self.vehicle.update(delta_t)
+            updated_position = self.vehicle.get_updated_position_prior(delta_t)
+            if self.check_collision(self.update_helper(updated_position)):
+                self.vehicle.on_collision()
+            else:
+                self.vehicle.update(delta_t)
+
+    def update_helper(self, updated_position: tuple):
+        """
+        Helper method designed to calculate the corners of the Vehicle
+        based upon its updated position.
+        """
+        vehicle_width_half = self.vehicle.width / 2
+        vehicle_height_half = self.vehicle.height / 2
+        upper_left = () + (updated_position[0] - vehicle_width_half, updated_position[1] - vehicle_height_half)
+        upper_right = () + (updated_position[0] + vehicle_width_half, updated_position[1] - vehicle_height_half)
+        lower_left = () + (updated_position[0] - vehicle_width_half, updated_position[1] + vehicle_height_half)
+        lower_right = () + (updated_position[0] + vehicle_width_half, updated_position[1] + vehicle_height_half)
+        return [upper_left, upper_right, lower_left, lower_right]
+
 
 class Feature:
     """
@@ -198,3 +216,12 @@ class Vehicle(Feature):
         self.velocity = () + (self.velocity[0] + self.acceleration[0] * delta_t, self.velocity[1] + self.acceleration[1] * delta_t)
         self.center = () + (self.center[0] + self.velocity[0] * delta_t, self.center[1] + self.velocity[1]* delta_t)
         self.acceleration = () + (0.0, 0.0)
+
+    def get_updated_position_prior(self, delta_t: float):
+        """
+        For the purposes of checking for collisions, this method
+        may be used to find the position of the Vehicle
+        after it is updated, without actually updating its position.
+        """
+        velocity_temp = () + (self.velocity[0] + self.acceleration[0] * delta_t, self.velocity[1] + self.acceleration[1] * delta_t)
+        return () + (self.center[0] + velocity_temp[0] * delta_t, self.center[1] + velocity_temp[1]* delta_t)
