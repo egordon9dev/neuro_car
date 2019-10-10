@@ -104,6 +104,7 @@ if __name__ == '__main__':
     controller.add_obstacle((640, 695), 1180, 50, "blue")
     controller.add_obstacle((640, 360), 450, 300, "blue")
     print(controller.world.convert_area_to_pixel((640, 360), 1280, 720))
+    
 
     should_close = False
     while not should_close:
@@ -118,3 +119,7 @@ if __name__ == '__main__':
         except Exception as e:
             print(e)
             should_close = True
+    controller.view.capture_postscript("test")
+    controller.view.window.close()
+
+    

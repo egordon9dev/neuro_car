@@ -8,6 +8,7 @@ from graphics import Rectangle
 from graphics import GraphWin
 from graphics import Point
 from world import World
+from PIL import Image
 
 class View:
     """
@@ -60,3 +61,13 @@ class View:
         Closes the window associated with this View.
         """
         self.window.close()
+
+    def capture_png(self, name: str):
+        """
+        Records a postscript (similar to PDF) of the current graphical representation to the given file name.
+        Converts this postscript to a png.
+        """
+        file_name = name + ".eps"
+        self.window.postscript(file=file_name, colormode='color')
+        img = Image.open(file_name)
+        img.save(name + ".png", "png")
