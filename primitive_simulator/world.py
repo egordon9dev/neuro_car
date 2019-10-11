@@ -101,12 +101,48 @@ class World:
         a 2D analog of that by taking an area of the World and returning a value
         that reflects a combination of features (or lack thereof) in that area.
         """
+        if not position[0] - width >= 0 and not position[0] + width <= self.width and not position[1] - height >= 0 and not position[1] + height <= self.height:
+            return -1.0
         feature = Feature(position, width, height)
         percentages = []
         for obstacle in self.obstacles:
             percentages.append(obstacle.get_percentage_of_overlapping(feature))
         return min(sum(percentages), 1.0)
 
+    def convert_area_to_pixel_array(self, starting_pixel_position: tuple, num_rows: int, num_cols: int, pixel_size: float):
+        """
+        Will convert a rectangular region of the World into a pixel array.
+        """
+        return_array = []
+        for x in range(num_rows):
+            for y in range(num_cols):
+                current_position = () + (starting_pixel_position[0] + x * pixel_size, starting_pixel_position[1] + y * pixel_size)
+                return_array.append(self.convert_area_to_pixel(current_position, pixel_size, pixel_size))
+        return return_array
+
+    def get_vehicle_sensory_data(self, pixel_size: float, radius: int):
+        """
+        Gets a pixel array starting at the Vehicle's position, utilizing pixel_size pixels
+        radiating out in radius levels.
+        """
+        return self.convert_area_to_pixel_array(self.vehicle.center, radius, radius, pixel_size)
+
+    def get_point_distances_from_obstacles(self, position: tuple):
+        """
+        Gets the distances to each obstacle in the World from a given point.
+        """
+        return_array = []
+        for obstacle in self.obstacles:
+            dx = max(abs(obstacle.center[0] - position[0]) - obstacle.width / 2, 0)
+            dy = max(abs(obstacle.center[1] - position[1]) - obstacle.height / 2, 0)
+            return_array.append((dx * dx + dy * dy) ** (.5))
+        return return_array
+
+    def get_vehicle_shortest_distance_to_obstacle(self):
+        """
+        Gets the distance between the Vehicle and the closest Obstacle.
+        """
+        return min(self.get_point_distances_from_obstacles(self.vehicle.center))
 
 class Feature:
     """

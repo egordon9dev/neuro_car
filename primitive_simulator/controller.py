@@ -15,11 +15,12 @@ class Agent:
     An Agent dictates commands to a Vehicle based upon built-in rules.
     """
 
-    def __init__(self, vehicle: Vehicle):
+    def __init__(self, vehicle: Vehicle, world: World):
         """
         Creates a new basic Agent with a given Vehicle to manage.
         """
         self.vehicle = vehicle
+        self.world = World
 
     def sense(self):
         """
@@ -97,14 +98,15 @@ class Controller:
 if __name__ == '__main__':
     controller = Controller((1280, 720), "Primitive Simulator", 0.001)
     controller.initialize_vehicle((100, 100), 40, 40, "red")
-    controller.set_agent(Agent(controller.world.vehicle))
+    controller.set_agent(Agent(controller.world.vehicle, controller.world))
     controller.add_obstacle((25, 360), 50, 720, "blue")
     controller.add_obstacle((1255, 360), 50, 720, "blue")
     controller.add_obstacle((640, 25), 1180, 50, "blue")
     controller.add_obstacle((640, 695), 1180, 50, "blue")
     controller.add_obstacle((640, 360), 450, 300, "blue")
-    print(controller.world.convert_area_to_pixel((640, 360), 1280, 720))
-    
+    #print(controller.world.convert_area_to_pixel((640, 360), 1280, 720))
+    #print(controller.world.convert_area_to_pixel_array((10, 10), 37, 65, 20))
+    print(controller.world.get_point_distances_from_obstacles((100, 100)))
 
     should_close = False
     while not should_close:
@@ -119,7 +121,5 @@ if __name__ == '__main__':
         except Exception as e:
             print(e)
             should_close = True
-    controller.view.capture_postscript("test")
+    #controller.view.capture_png("test")
     controller.view.window.close()
-
-    
