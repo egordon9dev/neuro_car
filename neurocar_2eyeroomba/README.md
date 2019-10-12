@@ -1,5 +1,13 @@
-# Roomba with two normal cameras
+# neuro_car
 
-add this folder to `~\catkin_ws\src\`
+- 2 cameras
+- uses 'create' model
 
-to launch: `roslaunch neurocar create_world.launch`
+# How to Run:<br>
+`cp -r neurocar_2eyeroomba ~/catkin_ws/src`<br>
+`roslaunch neurocar create_world.launch`
+
+(if that doesn't work try this and then try that again)<br>
+`source /opt/ros/melodic/setup.bash`<br>
+`source /usr/share/gazebo/setup.sh`<br>
+`export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:~/catkin_ws/src`
