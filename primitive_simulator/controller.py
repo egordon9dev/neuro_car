@@ -46,6 +46,33 @@ class Agent:
         self.sense()
         self.act()
 
+class LapAgent(Agent):
+    """
+    An Agent which loops the track.
+    """
+
+    def __init__(self, vehicle: Vehicle, world: World):
+        """
+        Creates a new LapAgent with a given Vehicle to manager and the World.
+        """
+        super(LapAgent, self).__init__(vehicle, world)
+        self.world = world
+
+    def act(self):
+        """
+        This act stage will figure out the necessary velocity and apply it.
+        Kinda cheating but I need it for testing.
+        """
+        center = self.vehicle.center
+        if center[0] <= 250 and center[1] >= 250:
+            self.vehicle.velocity = () + (0.0, -100.0)
+        elif center[0] <= 250 and center[1] < 250:
+            self.vehicle.velocity = () + (100.0, 0.0)
+        elif center[0] >= 1030 and center[1] < 250:
+            self.vehicle.velocity = () + (0.0, 100.0)
+        elif center[0] <= 1030 and center[1] >= 470:
+            self.vehicle.velocity = () + (-100.0, 0.0)
+
 class Controller:
     """
     Manages the interaction between a World and View.
@@ -98,7 +125,7 @@ class Controller:
 if __name__ == '__main__':
     controller = Controller((1280, 720), "Primitive Simulator", 0.001)
     controller.initialize_vehicle((100, 100), 40, 40, "red")
-    controller.set_agent(Agent(controller.world.vehicle, controller.world))
+    controller.set_agent(LapAgent(controller.world.vehicle, controller.world))
     controller.add_obstacle((25, 360), 50, 720, "blue")
     controller.add_obstacle((1255, 360), 50, 720, "blue")
     controller.add_obstacle((640, 25), 1180, 50, "blue")
@@ -106,7 +133,9 @@ if __name__ == '__main__':
     controller.add_obstacle((640, 360), 450, 300, "blue")
     #print(controller.world.convert_area_to_pixel((640, 360), 1280, 720))
     #print(controller.world.convert_area_to_pixel_array((10, 10), 37, 65, 20))
-    print(controller.world.get_point_distances_from_obstacles((100, 100)))
+    #print(controller.world.get_point_distances_from_obstacles((100, 100)))
+    #controller.world.get_point_distances_from_obstacles((100, 100))
+    #controller.world.get_vehicle_sensory_data(5, 5, 5)
 
     should_close = False
     while not should_close:
@@ -115,6 +144,7 @@ if __name__ == '__main__':
                 should_close = True
             else:
                 controller.update()
+                print(controller.world.get_vehicle_sensory_data(50, 5, 5))
         except GraphicsError as ge:
             print("WARNING: " + ge.__str__())
             should_close = True

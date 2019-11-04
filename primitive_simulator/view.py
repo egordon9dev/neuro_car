@@ -23,6 +23,7 @@ class View:
         self.window = GraphWin(title, world.width, world.height, autoflush=False)
         self.rectangles = []
         self.vehicle = None
+        self.camera = None
 
     def update(self, delta_t: float):
         """
@@ -30,6 +31,22 @@ class View:
         """
         if self.vehicle:
             self.vehicle.move(self.world.vehicle.velocity[0] * delta_t, self.world.vehicle.velocity[1] * delta_t)
+        
+        if self.world.camera:
+            #self.camera = Rectangle(self.world.camera.get_upper_left_corner(), self.world.camera.get_lower_right_corner())
+            if self.camera:
+                self.camera.undraw()
+            upper_left_corner = self.world.camera.get_upper_left_corner()
+            lower_right_corner = self.world.camera.get_lower_right_corner()
+            self.camera = Rectangle(Point(upper_left_corner[0], upper_left_corner[1]), Point(lower_right_corner[0], lower_right_corner[1]))
+            self.camera.setFill("green")
+            self.camera.setOutline("green")
+            self.camera.draw(self.window)
+        else:
+            if self.camera:
+                self.camera.undraw()
+            self.camera = None
+        
         self.window.update()
 
     def add_feature(self, upper_left_corner: tuple, lower_right_corner: tuple, color: str):

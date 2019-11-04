@@ -4,6 +4,18 @@
 # NeuroCar - Rogues' Gallery Neuro Team
 # 8 October 2019
 
+import math
+
+def get_direction_of_vector(vector: tuple):
+    """
+    Gets the direction vector of a 2D vector.
+    """
+    magnitude = math.sqrt(vector[0] ** 2 + vector[1] ** 2)
+    if magnitude <= 0:
+        #print(() + (0.0, 0.0))
+        return () + (0.0, 0.0)
+    return () + (vector[0] / magnitude, vector[1] / magnitude)
+
 class World:
     """
     A World is a representation of the physical space in which this simulation takes place.
@@ -19,6 +31,14 @@ class World:
         self.height = height
         self.obstacles = []
         self.vehicle = None
+        self.camera = None
+
+        # For computational efficiency
+        self.previous_array = None
+        self.previous_location = None
+        self.previous_width = None
+        self.previous_height = None
+        self.previous_pixel_size = None
 
     def add_obstacle(self, position: tuple, width: float, height: float):
         """
@@ -120,12 +140,30 @@ class World:
                 return_array.append(self.convert_area_to_pixel(current_position, pixel_size, pixel_size))
         return return_array
 
-    def get_vehicle_sensory_data(self, pixel_size: float, radius: int):
+    def convert_area_to_pixel_array_center(self, center: tuple, num_rows: int, num_cols: int, pixel_size: float):
         """
-        Gets a pixel array starting at the Vehicle's position, utilizing pixel_size pixels
-        radiating out in radius levels.
+        Converts a rectangular region of World into a pixel array, based upon a given center position.
         """
-        return self.convert_area_to_pixel_array(self.vehicle.center, radius, radius, pixel_size)
+        top_left = () + (center[0] - (num_cols / 2) * pixel_size, center[1] - (num_rows / 2) * pixel_size)
+        return self.convert_area_to_pixel_array(top_left, num_rows, num_cols, pixel_size)
+
+    def get_vehicle_sensory_data(self, pixel_size: float, camera_size: int, distance: float):
+        """
+        Gets a square pixel array simulating the camera data from a real Vehicle,
+        whose center is located distance away from the center of the Vehicle,
+        and is camera_size squared pixels large. 
+        Uses the Vehicle's current velocity to determine the location of the 
+        array.
+        """
+        direction = get_direction_of_vector(self.vehicle.velocity)
+        location = () + (direction[0] * distance + self.vehicle.center[0], direction[1] * distance + self.vehicle.center[1])
+        if self.camera:
+            #print("meme")
+            pass
+        else:
+            self.camera = Feature(location, pixel_size * camera_size, pixel_size * camera_size)
+        return self.convert_area_to_pixel_array_center(location, camera_size, camera_size, pixel_size)
+        #return self.convert_area_to_pixel_array(location, camera_size, camera_size, pixel_size)
 
     def get_point_distances_from_obstacles(self, position: tuple):
         """
@@ -192,6 +230,12 @@ class Feature:
         """
         return self.width * self.height
 
+    def move(self, dx: float, dy: float):
+        """
+        Moves this Feature by the given amounts.
+        """
+        self.center = () + (self.center[0] + dx, self.center[1] + dy)
+
 class Obstacle(Feature):
     """
     An Obstacle is a feature in the World which can be collided with.
@@ -239,7 +283,6 @@ class Obstacle(Feature):
         """
         if not self.check_collision(feature.get_corners()):
             return 0.0
-
 
         upper_left = self.get_upper_left_corner()
         other_upper_left = feature.get_upper_left_corner()
