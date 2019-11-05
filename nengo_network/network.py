@@ -49,7 +49,7 @@ class InputManager:
     def set_input_data(self, data):
         self.data = data
 
-    def get_input_data(self):
+    def get_input_data(self, t):
         return self.data
 
 class NeuralNet:
@@ -72,7 +72,7 @@ class NeuralNet:
 
         with self.model:
             # Set up the input
-            input_node = nengo.Node(self.input_manager.get_input_data())
+            input_node = nengo.Node(self.input_manager.get_input_data)
 
             # Set up the movement node
             movement = nengo.Ensemble(n_neurons=100, dimensions=2)
@@ -158,7 +158,7 @@ class NeuralNet:
         self.simulator.close()
 
 #print("Syntax correct.")
-input_manager = InputManager(np.array(1), 1)
+input_manager = InputManager(np.array([1]), 1)
 network = NeuralNet(input_manager, act)
 network.run_network(60)
 accel_total = 0.0
