@@ -5,6 +5,7 @@ from sensor_msgs.msg import Image
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 from math import sin
+from math import log
 import numpy as np
 from getkey import getkey, keys
 
@@ -12,8 +13,10 @@ bridge = CvBridge()
 
 class Attributes:
     def __init__(self):
-        self.acceleration = 1
-        self.rotation = 1
+        self.maxAngle = 5
+        self.maxSpeed = 5
+        self.acceleration = 0.5
+        self.rotation = 2.5
         self.speed = 0
         self.angle = 0
 
@@ -27,24 +30,32 @@ class Movement:
     def publish_vel(self):
         self.pub_move.publish(self.move)
 
+    def speedFunc(self, speed):
+        return 3*(speed**(1/3))
+
     def moving(self):
-        self.move.linear.x = self.attr.speed
+        self.move.linear.x = self.attr.speed**2 #self.speedFunc(self.attr.speed)
         self.move.angular.z = self.attr.angle
+        #print(self.move.linear.x)
 
     def move_forward(self):
-        self.attr.speed += self.attr.acceleration
+        if (self.attr.speed + self.attr.acceleration <= self.attr.maxSpeed):
+            self.attr.speed += self.attr.acceleration
         self.moving()
 
     def move_backward(self):
-        self.attr.speed -= self.attr.acceleration
+        if (self.attr.speed - self.attr.acceleration >= 0):
+            self.attr.speed -= self.attr.acceleration
         self.moving()
 
-    def rotate_right(self):
-        self.attr.angle += self.attr.rotation
+    def move_none(self):
         self.moving()
 
-    def rotate_left(self):
-        self.attr.angle -= self.attr.rotation
+    def rotate(self, angle):
+        if (angle > 0 and self.attr.angle + self.attr.rotation <= self.attr.maxAngle):
+            self.attr.angle += angle * self.attr.rotation
+        elif (angle < 0 and self.attr.angle - self.attr.rotation >= -self.attr.maxAngle):
+            self.attr.angle += angle * self.attr.rotation
         self.moving()
 
     def stop(self):        
@@ -79,10 +90,11 @@ def main():
             mov.move_forward()
         elif key == 's':
             mov.move_backward()
-        elif key == 'a':
-            mov.rotate_left()
+        
+        if key == 'a':
+            mov.rotate(-1)
         elif key == 'd':
-            mov.rotate_right()
+            mov.rotate(1)
 
         pub.publish(mov.move)
         rate.sleep()
@@ -92,4 +104,5 @@ if __name__ == '__main__':
         main()
     except rospy.ROSInterruptException:
         pass
+
 
