@@ -33,30 +33,30 @@ class Movement:
     def speedFunc(self, speed):
         return 3*(speed**(1/3))
 
-    def moving(self):
+    def execute(self):
         self.move.linear.x = self.attr.speed**2 #self.speedFunc(self.attr.speed)
         self.move.angular.z = self.attr.angle
         #print(self.move.linear.x)
 
-    def move_forward(self):
-        if (self.attr.speed + self.attr.acceleration <= self.attr.maxSpeed):
-            self.attr.speed += self.attr.acceleration
-        self.moving()
+    def move_car(self, speed):
+        if (speed > 0 and self.attr.speed + speed * self.attr.acceleration <= self.attr.maxSpeed):
+            self.attr.speed += speed * self.attr.acceleration
+        elif (speed < 0 and self.attr.speed + speed * self.attr.acceleration >= 0):
+            self.attr.speed += speed * self.attr.acceleration
 
-    def move_backward(self):
-        if (self.attr.speed - self.attr.acceleration >= 0):
-            self.attr.speed -= self.attr.acceleration
-        self.moving()
+        if (self.attr.speed < 0):
+            self.attr.speed = 0
+        self.execute()
 
     def move_none(self):
-        self.moving()
+        self.execute()
 
     def rotate(self, angle):
         if (angle > 0 and self.attr.angle + self.attr.rotation <= self.attr.maxAngle):
             self.attr.angle += angle * self.attr.rotation
-        elif (angle < 0 and self.attr.angle - self.attr.rotation >= -self.attr.maxAngle):
+        elif (angle < 0 and self.attr.angle + self.attr.rotation >= -self.attr.maxAngle):
             self.attr.angle += angle * self.attr.rotation
-        self.moving()
+        self.execute()
 
     def stop(self):        
         self.move.linear.x=0
@@ -87,9 +87,9 @@ def main():
         #movement = raw_input('Enter desired movement: ')
         key = getkey()
         if key == 'w':
-            mov.move_forward()
+            mov.move_car(1)
         elif key == 's':
-            mov.move_backward()
+            mov.move_car(-1)
         
         if key == 'a':
             mov.rotate(-1)
