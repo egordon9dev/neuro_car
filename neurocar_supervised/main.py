@@ -10,7 +10,9 @@ with open("training_data", "rb") as data_file:
 
 if len(training_data) == 0:
     sys.exit("file reading failed")
+#length of training_data: 933
 #length of img_arr: 9216
+print(len(training_data))
 print(str(len(training_data[500][0])))
 
 optimal_action = (0,0)
@@ -34,7 +36,7 @@ with model:
     movement_node = nengo.Node(move, size_in=2, label='reward')
     nengo.Connection(movement, movement_node)
 
-    stim_ensemble = nengo.Ensemble(n_neurons=100, dimensions=9216, radius=4)
+    stim_ensemble = nengo.Ensemble(n_neurons=5000, dimensions=9216, radius=4)
     stim_camera = nengo.Node(get_next_data)
     nengo.Connection(stim_camera, stim_ensemble)
 
@@ -69,8 +71,8 @@ with model:
     nengo.Connection(errors.ensembles[1], conn_left.learning_rule)
     nengo.Connection(errors.ensembles[2], conn_right.learning_rule)
 simulator = nengo.Simulator(model)
-simulator.run(60)
+simulator.run(1000)
 for i in range(10):
     simulator.step()
-    print("last action: %s,  optimal action: %s" % (str(last_action), str(optimal_action)))
+    print("idx: %d last action: %s,  optimal action: %s" % (training_idx, str(last_action), str(optimal_action)))
 simulator.close()
