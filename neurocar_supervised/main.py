@@ -2,15 +2,16 @@
 import numpy as np
 import math
 import nengo
-import pickle
+import msgpack
 
 training_data = []
-with open("training_data", "rb") as data_file:
-    training_data = pickle.load(data_file)
+with open("training_data_1000s_56k", "rb") as data_file:
+    training_data = msgpack.load(data_file)
 
 if len(training_data) == 0:
     sys.exit("file reading failed")
 #length of training_data: 933
+#length of training_data_1000s_56k: 56228
 #length of img_arr: 9216
 print(len(training_data))
 print(str(len(training_data[500][0])))
@@ -35,41 +36,23 @@ def move(t, x):
 
 model = nengo.Network(seed=8)
 with model:
-    movement = nengo.Ensemble(n_neurons=100, dimensions=2, radius=1.4)
+    movement = nengo.Ensemble(n_neurons=200, dimensions=2, radius=1.4)
 
     movement_node = nengo.Node(move, size_in=2, label='reward')
     nengo.Connection(movement, movement_node)
 
-    stim_ensemble = nengo.Ensemble(n_neurons=5000, dimensions=9216, radius=4)
+    stim_ensemble = nengo.Ensemble(n_neurons=10000, dimensions=9216, radius=4)
     stim_camera = nengo.Node(get_next_data)
     nengo.Connection(stim_camera, stim_ensemble)
 
-    def u_fwd(x):
-        return 0.8
+    conn_trans = nengo.Connection(stim_ensemble, movement, function=lambda x: 0.5, learning_rule_type=nengo.PES(), transform=[[1], [0]])
+    conn_rot = nengo.Connection(stim_ensemble, movement, function=lambda x: 0, learning_rule_type=nengo.PES(), transform=[[0], [1]])
 
-    def u_left(x):
-        return 0.6
-
-    def u_right(x):
-        return 0.7
-
-    conn_fwd = nengo.Connection(stim_ensemble, movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[1], [0]])
-    conn_left = nengo.Connection(stim_ensemble, movement, function=u_left, learning_rule_type=nengo.PES(), transform=[[0], [1]])
-    conn_right = nengo.Connection(stim_ensemble, movement, function=u_right, learning_rule_type=nengo.PES(), transform=[[0], [-1]])
-
-    nengo.Connection(thal.output[0], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[1], [0]])
-    nengo.Connection(thal.output[1], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[0], [1]])
-    nengo.Connection(thal.output[2], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[0], [-1]])
-
-    errors = nengo.networks.EnsembleArray(n_neurons=50, n_ensembles=3)
-    nengo.Connection(bg.output[0], errors.ensembles[0].neurons, transform=np.ones((50, 1)) * 4)
-    nengo.Connection(bg.output[1], errors.ensembles[1].neurons, transform=np.ones((50, 1)) * 4)
-    nengo.Connection(bg.output[2], errors.ensembles[2].neurons, transform=np.ones((50, 1)) * 4)
-    nengo.Connection(bg.input, errors.input, transform=1)
-
-    nengo.Connection(errors.ensembles[0], conn_fwd.learning_rule)
-    nengo.Connection(errors.ensembles[1], conn_left.learning_rule)
-    nengo.Connection(errors.ensembles[2], conn_right.learning_rule)
+    error = nengo.Ensemble(n_neurons=1000, dimensions=2)
+    #error = current - target
+    nengo.Connection(movement[0], movement_node, error)
+    optimal_node
+    nengo.Connectino()
 simulator = nengo.Simulator(model)
 simulator.run(60)
 for i in range(10):
