@@ -18,8 +18,12 @@ print(str(len(training_data[500][0])))
 optimal_action = (0,0)
 last_action = (0,0)
 training_idx = 0
+its = 0
 def get_next_data(t):
-    global optimal_action, training_idx, training_data
+    global optimal_action, training_idx, training_data, its
+    its += 1
+    if its % 100 == 0:
+        print("its: " + str(its))
     img_arr = training_data[training_idx][0]
     optimal_action = training_data[training_idx][1]
     training_idx = (training_idx+1) % len(training_data)
@@ -40,10 +44,6 @@ with model:
     stim_camera = nengo.Node(get_next_data)
     nengo.Connection(stim_camera, stim_ensemble)
 
-    bg = nengo.networks.actionselection.BasalGanglia(3)
-    thal = nengo.networks.actionselection.Thalamus(3)
-    nengo.Connection(bg.output, thal.input)
-
     def u_fwd(x):
         return 0.8
 
@@ -53,13 +53,13 @@ with model:
     def u_right(x):
         return 0.7
 
-    conn_fwd = nengo.Connection(stim_ensemble, bg.input[0], function=u_fwd, learning_rule_type=nengo.PES())
-    conn_left = nengo.Connection(stim_ensemble, bg.input[1], function=u_left, learning_rule_type=nengo.PES())
-    conn_right = nengo.Connection(stim_ensemble, bg.input[2], function=u_right, learning_rule_type=nengo.PES())
+    conn_fwd = nengo.Connection(stim_ensemble, movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[1], [0]])
+    conn_left = nengo.Connection(stim_ensemble, movement, function=u_left, learning_rule_type=nengo.PES(), transform=[[0], [1]])
+    conn_right = nengo.Connection(stim_ensemble, movement, function=u_right, learning_rule_type=nengo.PES(), transform=[[0], [-1]])
 
-    nengo.Connection(thal.output[0], movement, transform=[[1], [0]])
-    nengo.Connection(thal.output[1], movement, transform=[[0], [1]])
-    nengo.Connection(thal.output[2], movement, transform=[[0], [-1]])
+    nengo.Connection(thal.output[0], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[1], [0]])
+    nengo.Connection(thal.output[1], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[0], [1]])
+    nengo.Connection(thal.output[2], movement, function=u_fwd, learning_rule_type=nengo.PES(), transform=[[0], [-1]])
 
     errors = nengo.networks.EnsembleArray(n_neurons=50, n_ensembles=3)
     nengo.Connection(bg.output[0], errors.ensembles[0].neurons, transform=np.ones((50, 1)) * 4)
@@ -71,7 +71,7 @@ with model:
     nengo.Connection(errors.ensembles[1], conn_left.learning_rule)
     nengo.Connection(errors.ensembles[2], conn_right.learning_rule)
 simulator = nengo.Simulator(model)
-simulator.run(1000)
+simulator.run(60)
 for i in range(10):
     simulator.step()
     print("idx: %d last action: %s,  optimal action: %s" % (training_idx, str(last_action), str(optimal_action)))
