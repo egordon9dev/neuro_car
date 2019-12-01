@@ -6,14 +6,27 @@ import msgpack
 import random
 from collections import deque
 
-training_data1 = None
-training_data2 = None
-with open("training_data_1000s_56k.td", "rb") as data_file:
-    training_data1 = msgpack.load(data_file)
-with open("training_data_10s_runs_26k.td", "rb") as data_file:
-    training_data2 = msgpack.load(data_file)
-training_data = training_data1 + training_data2
-print("%d + %d = %d ?" % (len(training_data1), len(training_data2), len(training_data)))
+# training_data1 = None
+# training_data2 = None
+# with open("training_data_1000s_56k.td", "rb") as data_file:
+#     training_data1 = msgpack.load(data_file)
+# with open("training_data_10s_runs_26k.td", "rb") as data_file:
+#     training_data2 = msgpack.load(data_file)
+# training_data = training_data1 + training_data2
+# print("%d + %d = %d ?" % (len(training_data1), len(training_data2), len(training_data)))
+training_data = []
+file_idx = 0
+file_paths = ["neurocardataset1/training_data%d.td"%(i) for i in range(1,31)] + ["neurocardataset2/training_data%d"%(i) for i in range(1,34)]
+
+def load_new_data_file():
+    global training_data, file_idx
+    with open(file_paths[file_idx], "rb") as file:
+        training_data = msgpack.unpack(file)
+    file_idx = (file_idx+1) % len(file_paths)
+
+load_new_data_file()
+    
+
 if len(training_data) == 0:
     sys.exit("file reading failed")
 #length of training_data: 933
@@ -35,7 +48,10 @@ def get_next_data(t):
     if its % 100 == 0:
         print("its: " + str(its) + " avg error: " + str(average_error))
     img_arr = training_data[training_idx][0]
-    training_idx = (training_idx+random.randint(1, 1000)) % len(training_data)
+    training_idx += 1
+    if training_idx >= len(training_data):
+        load_new_data_file()
+        training_idx = 0
     return img_arr
 
 def get_optimal_action(x):
