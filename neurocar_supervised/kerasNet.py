@@ -1,149 +1,123 @@
 #!/usr/bin/env python3
+
+
+import data.load_data as load_data
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+from keras import backend as K
 import numpy as np
-import math
-import nengo
-import nengo_ocl
-import msgpack
-import random
-from collections import deque
-import matplotlib.pyplot as plt
 
-training_data = []
-file_idx = 0
-file_paths = ["neurocardataset1/training_data%d.td"%(i) for i in range(1,31)] + ["neurocardataset2/training_data%d.td"%(i) for i in range(1,34)]
+batch_size = 128
+epochs = 1
 
-learning_on = True
+img_rows, img_cols = 72, 128
 
-def load_new_data_file():
-    global training_data, file_idx
-    with open(file_paths[file_idx], "rb") as file:
-        training_data = msgpack.load(file)
-    file_idx = (file_idx+1) % len(file_paths)
+ncdata = load_data.NeuroCarData("./data")
 
-load_new_data_file()
-    
+n_training_frames = 2000
+n_test_frames = 100
 
-if len(training_data) == 0:
-    sys.exit("file reading failed")
-#length of training_data: 933
-#length of training_data_1000s_56k: 56228
-#length of img_arr: 9216
-print(len(training_data))
-print(str(len(training_data[500][0])))
-n_recent_actions = 1000
-recent_actions = deque([(0,0)]*n_recent_actions)
-recent_optimal_actions = deque([(0,0)]*n_recent_actions)
-average_error = -1
-optimal_action = (0,0)
-last_action = (0,0)
-training_idx = 0
-its = 0
-action_pair = ((0,0), (-1,-1))
-error_arr = [[], []]
-def get_next_data(t):
-    global training_idx, training_data, its, average_error
-    its += 1
-    action_pair_str = "current: %s    optimal: %s"%(str(action_pair[0]), str(action_pair[1]))
-    if its % 100 == 0:
-        print("")
-        print(action_pair_str)
-        print("its: " + str(its) + " avg error: " + str(average_error))
-    img_arr = training_data[training_idx][0]
-    training_idx += 1
-    if training_idx >= len(training_data):
-        load_new_data_file()
-        training_idx = 0
-    return img_arr
+train_frames = [ncdata.next_data_frame(0) for i in range(n_training_frames)]
+x_train = np.array([np.array(f.image) for f in train_frames])
+x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+y_train = np.array([np.array(f.ranges[0]) for f in train_frames])
 
-def get_optimal_action(x):
-    global training_data, training_idx, optimal_action
-    optimal_action = downscale_action(np.array([training_data[training_idx][2], training_data[training_idx][3]]))
-    return optimal_action
+test_frames = [ncdata.next_data_frame(0) for i in range(n_test_frames)]
+x_test = np.array([np.array(f.image) for f in test_frames])
+x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+y_test = np.array([np.array(f.ranges[0]) for f in test_frames])
 
-def mag(x):
-    return (x[0]**2 + x[1]**2) ** 0.5
+model = Sequential()
 
-last_error_time = -1
-def move(t, x):
-    global last_action, optimal_action, average_error, action_pair, error_arr, last_error_time
-    last_action = upscale_action(x)
-    action_pair = (last_action, upscale_action(get_optimal_action(x)))
-    current_error = mag((optimal_action[0]-x[0], optimal_action[1] - x[1]))
-    if t - last_error_time > 0.5:
-        error_arr[0].append(t)
-        error_arr[1].append(current_error)
-        last_error_time = t
-    alpha = 0.999
-    if average_error < 0:
-        average_error = current_error
-    else:
-        average_error = (1-alpha) * current_error + alpha * average_error
+model.add(Convolution2D(32, 3, 3, activation='relu', input_shape=(img_rows,img_cols, 1)))
+model.add(Convolution2D(32, 3, 3, activation='relu'))
+model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+ 
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='softmax'))
 
-    return x
+model.compile(loss=keras.losses.mse,
+              optimizer=keras.optimizers.RMSprop(.00000001),
+              metrics=['accuracy'])
 
-def downscale_action(x):
-    return np.array([x[0]/4, x[1]/1.5])
-def upscale_action(x):
-    return np.array([x[0]*4, x[1]*1.5])
-
-class Explicit(nengo.solvers.Solver):
-    def __init__(self, value, weights=False):
-        super(Explicit, self).__init__(weights=weights)
-        self.value = value
-            
-    def __call__(self, A, Y, rng=None, E=None):
-        return self.value, {}
-n_stim_neurons = 9216
-model = nengo.Network(seed=8)
-with model:
-    movement = nengo.Ensemble(n_neurons=9216, dimensions=2)
-
-    movement_node = nengo.Node(move, size_in=2, size_out=2, label='Movement')
-    nengo.Connection(movement, movement_node)
-
-    stim_ensemble = nengo.Ensemble(n_neurons=n_stim_neurons, dimensions=9216)
-    stim_camera = nengo.Node(get_next_data)
-    nengo.Connection(stim_camera, stim_ensemble)
-    # try:
-    #     weights_trans = np.load("weights_trans.npy")
-    # except IOError:
-    #     print("failed to load weights_trans file")
-    #     weights_trans = np.zeros((n_stim_neurons, 1))
-    # try:
-    #     weights_rot = np.load("weights_rot.npy")
-    # except IOError:
-    #     print("failed to load weights_rot file")
-    #     weights_rot = np.zeros((n_stim_neurons, 1))
-
-    conn_trans = nengo.Connection(stim_ensemble, movement, function=lambda x: 0.7, learning_rule_type=nengo.PES(), transform=[[1], [0]])
-    conn_rot = nengo.Connection(stim_ensemble, movement, function=lambda x: 0, learning_rule_type=nengo.PES(), transform=[[0], [1]])
-
-    if learning_on:
-        weights_trans_probe = nengo.Probe(conn_trans, "weights", sample_every=1.0)
-        weights_rot_probe = nengo.Probe(conn_rot, "weights", sample_every=1.0)
-        
-        error = nengo.Ensemble(n_neurons=5000, dimensions=2)
-        #error = current - target
-        nengo.Connection(movement_node, error)
-        optimal_action_node = nengo.Node(get_optimal_action, size_out=2, label="OptimalAction")
-        nengo.Connection(optimal_action_node, error, transform=-1)
-        nengo.Connection(error[0], conn_trans.learning_rule, transform=[[1], [0]])
-        nengo.Connection(error[1], conn_rot.learning_rule, transform=[[0], [1]])
-simulator = nengo_ocl.Simulator(model)
-simulator.run(220)
-# for i in range(100):
-#     simulator.step()
-#     training_idx = (training_idx+537)%len(training_data)
-#     print("idx: %d last action: %s,  optimal action: %s" % (training_idx, str(last_action), str(upscale_action(optimal_action))))
-if learning_on:
-    np.save("weights_trans.npy", simulator.data[weights_trans_probe][-1][0].T)
-    np.save("weights_rot.npy", simulator.data[weights_rot_probe][-1][1].T)
-simulator.close()
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
 
 
-plt.figure()
-plt.subplot(111)
-plt.scatter(error_arr[0], error_arr[1])
-plt.show("Error vs Time")
-plt.ylim(-1, 1)
-plt.show()
+
+
+
+
+
+
+
+
+# import numpy as np
+# import keras
+# from keras.models import Sequential
+# from keras.layers import Dense, Dropout, Activation, Flatten
+# from keras.layers import Conv2D, MaxPooling2D
+# from keras.datasets import mnist
+# from keras import backend as K
+ 
+# # 4. Load pre-shuffled MNIST data into train and test sets
+# (X_train, y_train), (X_test, y_test) = mnist.load_data()
+ 
+# # 5. Preprocess input data
+# X_train = X_train.reshape(X_train.shape[0], 28, 28,1)
+# X_test = X_test.reshape(X_test.shape[0], 28, 28,1)
+# X_train = X_train.astype('float32')
+# X_test = X_test.astype('float32')
+# X_train /= 255
+# X_test /= 255
+ 
+# # 7. Define model architecture
+# model = Sequential()
+ 
+# # model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(1,28,28)))
+# # model.add(Conv2D(32, (3, 3), activation='relu'))
+# # model.add(MaxPooling2D(pool_size=(2,2)))
+# # model.add(Dropout(0.25))
+ 
+# # model.add(Flatten())
+# # model.add(Dense(128, activation='relu'))
+# # model.add(Dropout(0.5))
+# # model.add(Dense(10, activation='softmax'))
+ 
+# model = Sequential()
+# model.add(Conv2D(32, kernel_size=(3, 3),
+#                  activation='relu',
+#                  input_shape=(28,28,1)))
+# model.add(Conv2D(64, (3, 3), activation='relu'))
+# model.add(MaxPooling2D(pool_size=(2, 2)))
+# model.add(Dropout(0.25))
+# model.add(Flatten())
+# model.add(Dense(128, activation='relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(10, activation='softmax'))
+
+
+
+
+# # 8. Compile model
+# model.compile(loss='categorical_crossentropy',
+#               optimizer='adam',
+#               metrics=['accuracy'])
+ 
+# # 9. Fit model on training data
+# model.fit(X_train, Y_train, 
+#           batch_size=32, nb_epoch=10, verbose=1)
+ 
+# # 10. Evaluate model on test data
+# score = model.evaluate(X_test, Y_test, verbose=0)
