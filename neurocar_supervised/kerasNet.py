@@ -1,123 +1,113 @@
 #!/usr/bin/env python3
-
-
+# from keras.applications.resnet50 import ResNet50
+# from keras.applications.mobilenet import MobileNet
+# from keras.applications.vgg16 import VGG16
 import data.load_data as load_data
 import keras
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.constraints import maxnorm
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, Flatten, BatchNormalization
+from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
 import numpy as np
 
 batch_size = 128
-epochs = 1
+epochs = 2
 
 img_rows, img_cols = 72, 128
 
 ncdata = load_data.NeuroCarData("./data")
 
-n_training_frames = 2000
-n_test_frames = 100
+n_training_iterations = 20
+n_training_frames = 5000
+n_test_frames = 10000
+min_range, max_range = (0.08, 100.0)
 
-train_frames = [ncdata.next_data_frame(0) for i in range(n_training_frames)]
-x_train = np.array([np.array(f.image) for f in train_frames])
-x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
-y_train = np.array([np.array(f.ranges[0]) for f in train_frames])
+def preprocess_labels(labels):
+    # clamp labels to within bounds
+    labels = [min(max(l, min_range), max_range) for l in labels]
+    # normalize
+    labels = [(l-min_range)/(max_range-min_range) for l in labels]
 
-test_frames = [ncdata.next_data_frame(0) for i in range(n_test_frames)]
-x_test = np.array([np.array(f.image) for f in test_frames])
-x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
-y_test = np.array([np.array(f.ranges[0]) for f in test_frames])
+    return labels
+
+#copy channels across all RGB values since these images are binary
+def to_three_channels(images):
+    return np.array([[[[px[0], px[0], px[0]] for px in row] for row in img] for img in images])
+
+n_channels=1
+x_train = None
+x_test = None
+y_train = None
+y_test = None
+def get_more_training_data():
+    global x_train, y_train
+    train_frames = [ncdata.next_data_frame(0) for i in range(n_training_frames)]
+    n_ranges = len(train_frames[0].ranges)
+    x_train = np.array([np.array(f.image) for f in train_frames])
+    x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+    y_train = np.array([np.array(f.ranges[0]) for f in train_frames])
+    y_train = preprocess_labels(y_train)
+    if n_channels==3:
+        x_train = to_three_channels(x_train)
+
+def get_test_data():
+    global x_test, y_test
+    test_frames = [ncdata.next_data_frame(0) for i in range(n_test_frames)]
+    x_test = np.array([np.array(f.image) for f in test_frames])
+    x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+    y_test = np.array([np.array(f.ranges[0]) for f in test_frames])
+    y_test = preprocess_labels(y_test)
+    if n_channels==3:
+        x_test = to_three_channels(x_test)
+
+# pre_net = MobileNet(include_top=False, weights='imagenet', input_shape=(img_rows,img_cols,3))
+# output = pre_net.layers[-1].output
+# output = keras.layers.Flatten()(output)
+# pre_net = Model(pre_net.input, output=output)
+# for layer in pre_net.layers:
+#     layer.trainable = False
 
 model = Sequential()
-
-model.add(Convolution2D(32, 3, 3, activation='relu', input_shape=(img_rows,img_cols, 1)))
-model.add(Convolution2D(32, 3, 3, activation='relu'))
-model.add(MaxPooling2D(pool_size=(2,2)))
-model.add(Dropout(0.25))
- 
+# model.add(pre_net)
+model.add(Conv2D(8, (3, 3), activation='relu', input_shape=(img_rows,img_cols, n_channels)))
+model.add(BatchNormalization())
+model.add(MaxPooling2D())
 model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(1, activation='softmax'))
+model.add(Dense(100, activation='relu'))
+model.add(Dropout(.3))
+model.add(Dense(1))
 
 model.compile(loss=keras.losses.mse,
-              optimizer=keras.optimizers.RMSprop(.00000001),
-              metrics=['accuracy'])
+              optimizer="rmsprop",
+              metrics=["mae", "acc"])
 
-model.fit(x_train, y_train,
-          batch_size=batch_size,
-          epochs=epochs,
-          verbose=1,
-          validation_data=(x_test, y_test))
-score = model.evaluate(x_test, y_test, verbose=0)
-print('Test loss:', score[0])
-print('Test accuracy:', score[1])
+for i in range(n_training_iterations):
+    get_more_training_data()
+    model.fit(x_train, y_train,
+            batch_size=batch_size,
+            epochs=epochs,
+            verbose=1)
+
+for i, m in enumerate(model.metrics):
+    print(model.metrics_names[i] + ": " + str(m))
+
+get_test_data()
+metrics = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=1)
+
+for i, m in enumerate(metrics):
+    print(model.metrics_names[i] + ": " + str(m))
 
 
-
-
-
-
-
-
-
-
-# import numpy as np
-# import keras
-# from keras.models import Sequential
-# from keras.layers import Dense, Dropout, Activation, Flatten
-# from keras.layers import Conv2D, MaxPooling2D
-# from keras.datasets import mnist
-# from keras import backend as K
- 
-# # 4. Load pre-shuffled MNIST data into train and test sets
-# (X_train, y_train), (X_test, y_test) = mnist.load_data()
- 
-# # 5. Preprocess input data
-# X_train = X_train.reshape(X_train.shape[0], 28, 28,1)
-# X_test = X_test.reshape(X_test.shape[0], 28, 28,1)
-# X_train = X_train.astype('float32')
-# X_test = X_test.astype('float32')
-# X_train /= 255
-# X_test /= 255
- 
-# # 7. Define model architecture
-# model = Sequential()
- 
-# # model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(1,28,28)))
-# # model.add(Conv2D(32, (3, 3), activation='relu'))
-# # model.add(MaxPooling2D(pool_size=(2,2)))
-# # model.add(Dropout(0.25))
- 
-# # model.add(Flatten())
-# # model.add(Dense(128, activation='relu'))
-# # model.add(Dropout(0.5))
-# # model.add(Dense(10, activation='softmax'))
- 
-# model = Sequential()
-# model.add(Conv2D(32, kernel_size=(3, 3),
-#                  activation='relu',
-#                  input_shape=(28,28,1)))
-# model.add(Conv2D(64, (3, 3), activation='relu'))
-# model.add(MaxPooling2D(pool_size=(2, 2)))
-# model.add(Dropout(0.25))
+# ----- best networks: 
+# 
+# ------ mae = 0.0939 (after 6 epochs) -----
+# model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(img_rows,img_cols, 1)))
+# model.add(Conv2D(32, (3, 3), activation='relu'))
+# model.add(Conv2D(32, (3, 3), activation='relu'))
+# model.add(BatchNormalization())
+# model.add(MaxPooling2D())
 # model.add(Flatten())
-# model.add(Dense(128, activation='relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(10, activation='softmax'))
+# model.add(Dense(16, activation='relu'))
+# model.add(Dense(1))
 
-
-
-
-# # 8. Compile model
-# model.compile(loss='categorical_crossentropy',
-#               optimizer='adam',
-#               metrics=['accuracy'])
- 
-# # 9. Fit model on training data
-# model.fit(X_train, Y_train, 
-#           batch_size=32, nb_epoch=10, verbose=1)
- 
-# # 10. Evaluate model on test data
-# score = model.evaluate(X_test, Y_test, verbose=0)
