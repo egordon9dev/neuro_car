@@ -3,3 +3,6 @@ training_data
 td
 training_data.*
 *.zip
+*.pyc
+*.npy
+*.h5
