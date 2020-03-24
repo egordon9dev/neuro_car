@@ -3,10 +3,10 @@ import numpy as np
 
 
 class NeuroCarData:
-    def __init__(self, base_path="."):
+    def __init__(self, base_path=".", file_idx=0, training_idx=0):
         self.training_data = []
-        self.file_idx = 0
-        self.training_idx = 0
+        self.file_idx = file_idx
+        self.training_idx = training_idx
         self.file_paths = ["%s/camera_ranges_action/training_data%d.td"%(base_path, i) for i in range(1,81)]
         self.load_new_data_file()
         self.current_frame = None
