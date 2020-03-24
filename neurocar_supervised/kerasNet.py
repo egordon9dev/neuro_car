@@ -18,7 +18,7 @@ img_rows, img_cols = 72, 128
 
 ncdata = load_data.NeuroCarData("./data")
 
-n_training_iterations = 20
+n_training_iterations = 5
 n_training_frames = 5000
 n_test_frames = 10000
 min_range, max_range = (0.08, 100.0)
@@ -35,6 +35,7 @@ def preprocess_labels(labels):
 def to_three_channels(images):
     return np.array([[[[px[0], px[0], px[0]] for px in row] for row in img] for img in images])
 
+training_enabled = False
 n_channels=1
 x_train = None
 x_test = None
@@ -67,27 +68,34 @@ def get_test_data():
 # pre_net = Model(pre_net.input, output=output)
 # for layer in pre_net.layers:
 #     layer.trainable = False
+model = None
+if training_enabled:
+    model = Sequential()
+    # model.add(pre_net)
+    model.add(Conv2D(4, (3, 3), activation='relu', input_shape=(img_rows,img_cols, n_channels)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((5,5)))
+    model.add(Flatten())
+    model.add(Dense(100, activation='relu'))
+    model.add(Dropout(.3))
+    model.add(Dense(1))
 
-model = Sequential()
-# model.add(pre_net)
-model.add(Conv2D(8, (3, 3), activation='relu', input_shape=(img_rows,img_cols, n_channels)))
-model.add(BatchNormalization())
-model.add(MaxPooling2D())
-model.add(Flatten())
-model.add(Dense(100, activation='relu'))
-model.add(Dropout(.3))
-model.add(Dense(1))
+    model.compile(loss=keras.losses.mse,
+                optimizer="rmsprop",
+                metrics=["mae", "acc"])
 
-model.compile(loss=keras.losses.mse,
-              optimizer="rmsprop",
-              metrics=["mae", "acc"])
+    for i in range(n_training_iterations):
+        get_more_training_data()
+        model.fit(x_train, y_train,
+                batch_size=batch_size,
+                epochs=epochs,
+                verbose=1)
 
-for i in range(n_training_iterations):
-    get_more_training_data()
-    model.fit(x_train, y_train,
-            batch_size=batch_size,
-            epochs=epochs,
-            verbose=1)
+    print("saving model...")
+    model.save("neurocar_model.h5")
+    print("done saving model.")
+else:
+    model = keras.models.load_model("neurocar_model.h5")
 
 for i, m in enumerate(model.metrics):
     print(model.metrics_names[i] + ": " + str(m))
@@ -97,7 +105,6 @@ metrics = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=1)
 
 for i, m in enumerate(metrics):
     print(model.metrics_names[i] + ": " + str(m))
-
 
 # ----- best networks: 
 # 
