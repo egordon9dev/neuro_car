@@ -10,7 +10,7 @@ import numpy as np
 
 training_enabled = True
 batch_size = 128
-epochs = 2
+epochs = 50
 init_file_idx = 0
 init_training_idx = 0
 
@@ -18,7 +18,6 @@ img_rows, img_cols = 72, 128
 n_channels=1
 ncdata = load_data.NeuroCarData("./data", init_file_idx, init_training_idx)
 
-n_training_iterations = 10000
 n_training_frames = 5000
 n_test_frames = 10000
 min_range, max_range = (0.08, 100.0)
@@ -100,22 +99,21 @@ def train_model(range_idx):
             model.add(Dense(1))
 
         model.compile(loss=keras.losses.mse,
-                    optimizer=keras.optimizers.SGD(learning_rate=.01, momentum=.9),
+                    optimizer=keras.optimizers.RMSprop(),
                     metrics=["mae"])
 
-        i = 0
-        while i < n_training_iterations:
-            n_iterations_segment = input("how many iterations should we run?")
-            if n_iterations_segment == 0:
+        while True:
+            n_iterations = int(input("how many iterations should we run?"))
+            if n_iterations == 0:
                 break
-            for i in range(n_iterations_segment):
-                if(not i < n_training_iterations):
-                    break
+            for i in range(n_iterations):
                 get_more_training_data(range_idx)
                 model.fit(x_train, y_train,
                         batch_size=batch_size,
                         epochs=epochs,
                         verbose=1)
+                with open("status.txt", "w") as f:
+                    f.write("iteration: %d out of %d\n"%(i, n_iterations))
             
         print("saving model...")
         print("data location: file_idx = %d  training_idx = %d"%(ncdata.file_idx, ncdata.training_idx))
