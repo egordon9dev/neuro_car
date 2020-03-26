@@ -137,7 +137,7 @@ def train_model(range_idx):
                 break
             for i in range(n_iterations):
                 maes = []
-                for i in range(81):
+                for j in range(81):
                     print("data location: file_idx = %d  training_idx = %d"%(ncdata.file_idx, ncdata.training_idx))
                     get_more_training_data(range_idx)
                     history = model.fit(x_train, y_train,
