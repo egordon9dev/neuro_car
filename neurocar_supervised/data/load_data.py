@@ -1,7 +1,6 @@
 import msgpack
 import numpy as np
 
-
 class NeuroCarData:
     def __init__(self, base_path=".", file_idx=0, training_idx=0):
         self.training_data = []
@@ -25,6 +24,8 @@ class NeuroCarData:
 
     def next_data_frame(self, t):
         image = self.training_data[self.training_idx][0]
+        #subtract mean pixel
+        image -= np.mean(image)
         ranges = self.training_data[self.training_idx][1]
         trans_vel = self.training_data[self.training_idx][2]
         rot_vel = self.training_data[self.training_idx][3]
@@ -49,7 +50,7 @@ class NeuroCarData:
 
 class NeuroCarDataFrame:
     def __init__(self, img, ranges, action):
-        self.image = np.asarray(img).reshape((72,128))
+        self.image = np.asarray(img).reshape((72,128,1))
         self.ranges = ranges
         self.action = action
 

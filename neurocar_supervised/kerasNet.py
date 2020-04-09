@@ -108,7 +108,7 @@ def train_model(range_idx):
 
         model.compile(loss=keras.losses.mse,
                     optimizer=keras.optimizers.SGD(lr=lr_schedule(0),momentum=.9),
-                    metrics=["acc"])
+                    metrics=["acc", "mae"])
         model.summary()
         # Prepare callbacks for model saving and for learning rate adjustment.
         checkpoint = ModelCheckpoint(filepath=filepath,
