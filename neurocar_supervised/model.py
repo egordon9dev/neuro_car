@@ -7,7 +7,7 @@ ResNet v1:
 from __future__ import print_function
 import keras
 from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import AveragePooling2D, Input, Flatten
+from keras.layers import AveragePooling2D, Input, Flatten, Add
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
@@ -19,18 +19,8 @@ import numpy as np
 import os
 
 # Training parameters
-batch_size = 32  # orig paper trained all networks with batch_size=128
-epochs = 200
-data_augmentation = True
-
-# Subtracting pixel mean improves accuracy
-subtract_pixel_mean = True
-
-version = 1
-
-
 def resnet_layer(inputs,
-                 num_filters=16,
+                 num_filters,
                  kernel_size=3,
                  strides=1,
                  activation='relu',
@@ -54,9 +44,7 @@ def resnet_layer(inputs,
     conv = Conv2D(num_filters,
                   kernel_size=kernel_size,
                   strides=strides,
-                  padding='same',
-                  kernel_initializer='he_normal',
-                  kernel_regularizer=l2(1e-4))
+                  padding='same')
 
     x = inputs
     if conv_first:
@@ -74,7 +62,7 @@ def resnet_layer(inputs,
     return x
 
 
-def resnet_v1(input_shape, depth=20):
+def resnet_v1(input_shape, depth, num_filters):
     """ResNet Version 1 Model builder [a]
 
     Stacks of 2 x (3 x 3) Conv2D-BN-ReLU
@@ -84,34 +72,27 @@ def resnet_v1(input_shape, depth=20):
     doubled. Within each stage, the layers have the same number filters and the
     same number of filters.
     Features maps sizes:
-    stage 0: 32x32, 16
-    stage 1: 16x16, 32
-    stage 2:  8x8,  64
-    The Number of parameters is approx the same as Table 6 of [a]:
-    ResNet20 0.27M
-    ResNet32 0.46M
-    ResNet44 0.66M
-    ResNet56 0.85M
-    ResNet110 1.7M
+    stage 0: 128x72, 8
+    stage 1: 64x36, 16
+    stage 2:  32x18,  32
+    stage 3: 16x9, 64
 
     # Arguments
         input_shape (tensor): shape of input image tensor
         depth (int): number of core convolutional layers
-        num_classes (int): number of classes (CIFAR10 has 10)
 
     # Returns
         model (Model): Keras model instance
     """
-    if (depth - 2) % 6 != 0:
-        raise ValueError('depth should be 6n+2 (eg 20, 32, 44 in [a])')
+    if (depth - 2) % 8 != 0:
+        raise ValueError('depth should be 8n+2 (eg 20, 32, 44 in [a])')
     # Start model definition.
-    num_filters = 16
-    num_res_blocks = int((depth - 2) / 6)
+    num_res_blocks = int((depth - 2) / 8)
 
     inputs = Input(shape=input_shape)
-    x = resnet_layer(inputs=inputs)
+    x = resnet_layer(inputs=inputs, num_filters=num_filters)
     # Instantiate the stack of residual units
-    for stack in range(3):
+    for stack in range(4):
         for res_block in range(num_res_blocks):
             strides = 1
             if stack > 0 and res_block == 0:  # first layer but not first stack
@@ -131,15 +112,65 @@ def resnet_v1(input_shape, depth=20):
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = Add()([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
 
     # Add classifier on top.
     # v1 does not use BN after last shortcut connection-ReLU
-    x = AveragePooling2D(pool_size=8)(x)
+    # x = AveragePooling2D(pool_size=(9,16))(x)
     y = Flatten()(x)
-    outputs = Dense(1, activation='relu', kernel_initializer='he_normal')(y)
+    outputs = Dense(1, activation='relu')(y)
+
+    # Instantiate model.
+    model = Model(inputs=inputs, outputs=outputs)
+    return model
+
+def vgg(input_shape, depth, num_filters):
+    """
+    Features maps sizes:
+    stage 0: 128x72, 8
+    stage 1: 64x36, 16
+    stage 2:  32x18,  32
+    stage 3: 16x9, 64
+
+    # Arguments
+        input_shape (tensor): shape of input image tensor
+        depth (int): number of core convolutional layers
+
+    # Returns
+        model (Model): Keras model instance
+    """
+    if (depth - 2) % 8 != 0:
+        raise ValueError('depth should be 8n+2 (eg 20, 32, 44 in [a])')
+    # Start model definition.
+    num_blocks = int((depth - 2) / 8)
+
+    inputs = Input(shape=input_shape)
+    x = inputs
+    # Instantiate the stack of residual units
+    for stack in range(4):
+        for block in range(num_blocks):
+            strides = 1
+            if stack > 0 and block == 0:  # first layer but not first stack
+                strides = 2  # downsample
+            x = Conv2D(filters=num_filters, kernel_size=(3,3),
+                             strides=strides,
+                             padding="same")(x)
+            # x = BatchNormalization()(x)
+            x = Activation("relu")(x)
+            x = Conv2D(filters=num_filters, kernel_size=(3,3),
+                             activation="relu",
+                             padding="same")(x)
+            # x = BatchNormalization()(x)
+            x = Activation("relu")(x)
+        num_filters *= 2
+
+    # Add classifier on top.
+    # v1 does not use BN after last shortcut connection-ReLU
+    # x = AveragePooling2D(pool_size=(9,16))(x)
+    y = Flatten()(x)
+    outputs = Dense(1, activation='relu')(y)
 
     # Instantiate model.
     model = Model(inputs=inputs, outputs=outputs)

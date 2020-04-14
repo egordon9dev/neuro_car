@@ -1,4 +1,1 @@
 ====================          range 31          ====================
-Done.
-Finished iteration: 80 out of 10    mae: 0.024496
-
