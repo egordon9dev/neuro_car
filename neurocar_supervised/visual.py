@@ -20,8 +20,8 @@ def preprocess_label(l):
         l = 1
     return l
 
-range_idxs = [0,1,35,36]
-models = [keras.models.load_model("./ncmodel%d.h5"%(i)) for i in range_idxs]
+range_idxs = [0,3,33,36]
+model = keras.models.load_model("./ncmodel.h5")
 
 ncdata = load_data.NeuroCarData(paths=["./data/grayscale_data.td"])
 fig = plt.figure(figsize=(8,8))
@@ -35,9 +35,8 @@ def animate(i):
     img = np.asarray(frame[0])
     image.set_array(img.reshape((img_height,img_width)).tolist())
     labels = [preprocess_label(frame[1][i]) for i in range_idxs]
-    img = load_data.process_image(img).reshape((img.shape[0], img.shape[1], 1))
-    model_input = np.array([img])
-    model_outputs = [m.predict(model_input)[0] for m in models]
+    model_input = load_data.process_image(img)[:, :, None].repeat(3, axis=2)
+    model_outputs = model.predict(model_input[None,:,:,:])[0]
     print("Networks Output (prediction / true-value):")
     for i in range(len(range_idxs)):
         print("\trange %d:  %.3f / %.3f "%(range_idxs[i], model_outputs[i], labels[i]))
